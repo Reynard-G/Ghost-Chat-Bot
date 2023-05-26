@@ -1,5 +1,6 @@
 const EventEmitter = require('events');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ChannelType, ButtonStyle } = require("discord.js");
+const discordTranscripts = require('discord-html-transcripts');
 
 module.exports = class ChatroomManager extends EventEmitter {
     /**
@@ -14,9 +15,11 @@ module.exports = class ChatroomManager extends EventEmitter {
 
     /**
      * Create a new chatroom
-     * @param {string} guild_id - The ID of the guild to create the chatroom in
-     * @param {string} creator_id - The ID of the user to create the chatroom for
-     * @param {string} category_id - The ID of the category to create the chatroom in
+     * 
+     * @param {Number} guild_id - The Discord ID of the guild to create the chatroom in
+     * @param {Number} creator_id - The Discord ID of the user to create the chatroom for
+     * @param {Number} category_id - The Discord ID of the category to create the chatroom in
+     * @returns {Object} - The created chatroom channel
      */
     async create(guild_id, creator_id, category_id) {
         const guild = await this.client.guilds.fetch(guild_id); // Fetch the guild by ID
@@ -79,6 +82,12 @@ module.exports = class ChatroomManager extends EventEmitter {
         return chatroom; // Return the created chatroom
     }
 
+    /**
+     * Gets a chatroom by ID, if it exists
+     * 
+     * @param {Number} user_id - The Discord ID of the user to get the chatroom for
+     * @returns { Object | null } - The query result, or null if no chatroom is found
+     */
     async get(user_id) {
         try {
             // Search for open chatrooms in DB
@@ -99,14 +108,105 @@ module.exports = class ChatroomManager extends EventEmitter {
             }
         } catch (error) {
             // Handle any errors that occur during the query
-            console.error("Error retrieving chatroom:", error);
+            this.client.logger.error("Error getting chatroom:", error);
             return null;
         }
     }
 
+    /**
+     * Closes a chatroom
+     * 
+     * @param {Number} chatroom_id - The Discord ID of the chatroom to close
+     * @returns { Object | null } - The query result, or null if no chatroom is found
+     */
     async close(chatroom_id) {
+        // Check if chatroom exists
+        this.get(chatroom_id);
+
+        if (chatroom.length === 0) {
+            this.client.logger.warn(`Chatroom #${chatroom.name} (${chatroom.id}) does not exist.`);
+            return null;
+        }
+
+        // Get HTML transcript of chatroom
+        const chatroom = await this.client.channels.fetch(chatroom_id);
+        const transcript = await discordTranscripts.createTranscript(chatroom,
+            {
+                limit: Infinity,
+                filename: `${chatroom.name} Transcript.html`,
+                saveImages: true,
+                footerText: "Exported {nunber} message(s)",
+                poweredBy: false
+            }
+        );
+
+        // Send transcript to all users involved
+        this.participants(chatroom_id).forEach(user => {
+            user.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle(`Chatroom #${chatroom.name} Closed`)
+                        .setDescription(`The chatroom you were in has been closed. Here is a transcript of the chatroom:`)
+                        .setColor("#8B0000")
+                        .setTimestamp()
+                        .setFooter({ text: `Ghost Chat • Chatroom #${chatroom.name}`, iconURL: this.client.user.displayAvatarURL() })
+                ],
+                files: [transcript]
+            });
+        });
+
+        try {
+            // Close chatroom
+            this.client.query(
+                "UPDATE rooms SET status = 3 WHERE channel_id = ?",
+                [chatroom_id]
+            );
+
+            this.client.logger.info(`Closed chatroom #${chatroom.name} (${chatroom.id})`);
+
+        } catch (error) {
+            // Handle any errors that occur during the query
+            this.client.logger.error("Error closing chatroom:", error);
+            return null;
+        }
     }
 
     async reply(chatroom_id, message) {
+        // Check if chatroom exists
+
+        // Check if the chatroom is "Closed"
+
+        // If the user has not previously sent a message, log the user as one of the chatroom participants
+
+        // If the chatroom is "Opened", change the status to "In Progress"
+
+        // Send the message to the chatroom
+
+        // Return the message
+    }
+
+    async participants(chatroom_id) {
+        // Check if chatroom exists
+        this.get(chatroom_id);
+
+        if (chatroom.length === 0) {
+            this.client.logger.warn(`Chatroom #${chatroom.name} (${chatroom.id}) does not exist.`);
+            return null;
+        }
+
+        try {
+            // Get all users involved in the chatroom
+            const result = await this.client.query(
+                "SELECT participants FROM room WHERE room_id = ?",
+                [chatroom_id]
+            );
+
+            // Return the users
+            return result;
+        } catch (error) {
+            // Handle any errors that occur during the query
+            this.client.logger.error("Error getting chatroom participants:", error);
+            return null;
+        }
     }
 };
