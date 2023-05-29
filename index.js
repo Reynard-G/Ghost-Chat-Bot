@@ -18,6 +18,7 @@ client.aliases = new Collection();
 client.slashCommands = new Collection();
 client.subCommands = new Collection();
 client.buttons = new Collection();
+client.modals = new Collection();
 client.logger = log;
 
 module.exports = client;

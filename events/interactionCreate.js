@@ -69,6 +69,6 @@ client.on("interactionCreate", async interaction => {
 			await slashCommand.run(client, interaction);
 		}
 	} catch (error) {
-		console.log(error);
+		client.logger.error(error);
 	}
 });

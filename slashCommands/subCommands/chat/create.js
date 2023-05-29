@@ -27,7 +27,7 @@ module.exports = {
         }
 
         // Check if the user is already in a chatroom
-        const chatroom = await client.chatrooms.get(interaction.user.id);
+        const chatroom = await client.chatrooms.get(interaction.user.id, "creator");
         if (chatroom !== null) {
             await interaction.editReply({
                 embeds: [
@@ -49,7 +49,7 @@ module.exports = {
 
         // Create a new chatroom
         try {
-            await client.chatrooms.create(process.env.CHATROOM_GUILD_ID, interaction.user.id, process.env.CHATROOM_CATEGORY_ID);
+            const chatroomID = await client.chatrooms.create(process.env.CHATROOM_GUILD_ID, interaction.user.id, process.env.CHATROOM_CATEGORY_ID);
 
             const components = new ActionRowBuilder();
             components.addComponents(
@@ -67,7 +67,7 @@ module.exports = {
                         .setDescription(`Your chatroom has been created. Messages sent here will be relayed back to the recipients automatically. You can close the chatroom at any time by clicking the button below.`)
                         .setColor("#8B0000")
                         .setTimestamp()
-                        .setFooter({ text: `Ghost Chat • Chatroom #`, iconURL: client.user.displayAvatarURL() })
+                        .setFooter({ text: `Ghost Chat • Chatroom #${chatroomID}`, iconURL: client.user.displayAvatarURL() })
                 ],
                 components: [components]
             };
